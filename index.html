@@ -1,0 +1,505 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tweet Cleaner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ff88;
+    --accent2: #ff6b35;
+    --text: #e8e8f0;
+    --muted: #555570;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(0,255,136,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(255,107,53,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { width: 100%; max-width: 680px; position: relative; z-index: 1; }
+
+  header { margin-bottom: 48px; animation: fadeDown 0.6s ease both; }
+
+  .label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle { margin-top: 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface);
+    animation: fadeUp 0.6s 0.1s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,255,136,0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); transform: translateY(-2px); }
+  .drop-zone:hover::before, .drop-zone.dragover::before { opacity: 1; }
+
+  .drop-icon { font-size: 40px; margin-bottom: 16px; display: block; }
+
+  .drop-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .drop-sub { font-size: 12px; color: var(--muted); }
+
+  #fileInput { display: none; }
+
+  .options {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 16px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .options-title {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .option:last-child { border-bottom: none; }
+
+  .option input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--muted);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .option input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+
+  .option input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .option-text { font-size: 13px; color: var(--text); }
+  .option-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .progress-area {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-top: 16px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  .progress-bar-track {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .status-text { font-size: 13px; color: var(--text); min-height: 20px; }
+
+  .results {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-top: 16px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .download-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .download-btn:hover { background: #00ffaa; transform: translateY(-1px); }
+  .download-btn:active { transform: translateY(0); }
+
+  .reset-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  .note {
+    margin-top: 28px;
+    padding: 16px 20px;
+    background: rgba(255,107,53,0.06);
+    border: 1px solid rgba(255,107,53,0.2);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .note strong { color: var(--accent2); }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="label">// tweet archive tool</div>
+    <h1>Clean Your<br><span>tweets.js</span></h1>
+    <p class="subtitle">Strip out retweets & replies. Keep only your original voice.<br>Everything runs locally — your data never leaves your device.</p>
+  </header>
+
+  <div class="drop-zone" id="dropZone">
+    <span class="drop-icon">📂</span>
+    <div class="drop-text">Drop tweets.js here</div>
+    <div class="drop-sub">or tap to browse files</div>
+    <input type="file" id="fileInput" accept=".js,.json">
+  </div>
+
+  <div class="options" id="optionsPanel">
+    <div class="options-title">// filter options</div>
+    <label class="option">
+      <input type="checkbox" id="removeRTs" checked>
+      <div>
+        <div class="option-text">Remove retweets</div>
+        <div class="option-desc">Tweets starting with "RT @"</div>
+      </div>
+    </label>
+    <label class="option">
+      <input type="checkbox" id="removeReplies" checked>
+      <div>
+        <div class="option-text">Remove replies</div>
+        <div class="option-desc">Tweets starting with "@"</div>
+      </div>
+    </label>
+    <label class="option">
+      <input type="checkbox" id="removeQuotes">
+      <div>
+        <div class="option-text">Remove quote tweets</div>
+        <div class="option-desc">Tweets that quote another tweet</div>
+      </div>
+    </label>
+    <label class="option">
+      <input type="checkbox" id="textOnly">
+      <div>
+        <div class="option-text">Strip metadata</div>
+        <div class="option-desc">Output plain text only (one tweet per line)</div>
+      </div>
+    </label>
+  </div>
+
+  <div class="progress-area" id="progressArea">
+    <div class="progress-label">Processing...</div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="status-text" id="statusText">Reading file...</div>
+  </div>
+
+  <div class="results" id="resultsPanel">
+    <div class="stats-grid">
+      <div class="stat">
+        <span class="stat-num" id="statTotal">0</span>
+        <div class="stat-label">Total tweets</div>
+      </div>
+      <div class="stat">
+        <span class="stat-num" id="statRemoved">0</span>
+        <div class="stat-label">Removed</div>
+      </div>
+      <div class="stat">
+        <span class="stat-num" id="statKept">0</span>
+        <div class="stat-label">Kept</div>
+      </div>
+    </div>
+    <button class="download-btn" id="downloadBtn">⬇ Download Cleaned File</button>
+    <button class="reset-btn" id="resetBtn">Process another file</button>
+  </div>
+
+  <div class="note">
+    <strong>How to use with AI:</strong> Upload the downloaded file to Claude, ChatGPT, or any AI and ask it to analyze your writing style, tone, and patterns — then use it to generate content in your voice.
+  </div>
+
+  <div style="margin-top: 12px; padding: 14px 20px; background: rgba(0,255,136,0.04); border: 1px solid rgba(0,255,136,0.15); border-radius: 10px; font-size: 12px; color: #555570; line-height: 1.6;">
+    🔒 <strong style="color: #00ff88;">100% private.</strong> Your file never leaves your device. Everything is processed locally in your browser — no server, no database, no uploads. Nobody sees your tweets except you.
+  </div>
+</div>
+
+<script>
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const progressArea = document.getElementById('progressArea');
+  const progressFill = document.getElementById('progressFill');
+  const statusText = document.getElementById('statusText');
+  const resultsPanel = document.getElementById('resultsPanel');
+  const optionsPanel = document.getElementById('optionsPanel');
+
+  let cleanedData = null;
+  let outputFilename = 'tweets_cleaned.js';
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  });
+
+  fileInput.addEventListener('change', (e) => { if (e.target.files[0]) processFile(e.target.files[0]); });
+  document.getElementById('downloadBtn').addEventListener('click', downloadFile);
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  function processFile(file) {
+    outputFilename = file.name.replace(/\.(js|json)$/, '') + '_cleaned.js';
+    dropZone.style.display = 'none';
+    optionsPanel.style.display = 'none';
+    progressArea.style.display = 'block';
+
+    const reader = new FileReader();
+    reader.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = (e.loaded / e.total) * 50;
+        progressFill.style.width = pct + '%';
+        statusText.textContent = `Reading file... ${Math.round(pct * 2)}%`;
+      }
+    };
+
+    reader.onload = (e) => {
+      progressFill.style.width = '60%';
+      statusText.textContent = 'Parsing tweets...';
+      setTimeout(() => {
+        try {
+          const raw = e.target.result;
+          const tweets = parseTweetsJS(raw);
+          progressFill.style.width = '80%';
+          statusText.textContent = `Found ${tweets.length} tweets. Filtering...`;
+          setTimeout(() => {
+            const filtered = filterTweets(tweets);
+            progressFill.style.width = '100%';
+            statusText.textContent = 'Done!';
+            setTimeout(() => { showResults(tweets.length, tweets.length - filtered.length, filtered); }, 400);
+          }, 200);
+        } catch (err) {
+          statusText.textContent = '❌ Error: ' + err.message;
+          progressFill.style.background = '#ff4444';
+        }
+      }, 100);
+    };
+    reader.readAsText(file);
+  }
+
+  function parseTweetsJS(raw) {
+    let jsonStr = raw;
+    const assignMatch = raw.match(/^[^=]+=\s*/);
+    if (assignMatch) {
+      jsonStr = raw.slice(assignMatch[0].length).trim();
+      if (jsonStr.endsWith(';')) jsonStr = jsonStr.slice(0, -1);
+    }
+    const data = JSON.parse(jsonStr);
+    if (Array.isArray(data)) return data.map(item => item.tweet || item);
+    throw new Error('Unexpected file format');
+  }
+
+  function filterTweets(tweets) {
+    const removeRTs = document.getElementById('removeRTs').checked;
+    const removeReplies = document.getElementById('removeReplies').checked;
+    const removeQuotes = document.getElementById('removeQuotes').checked;
+    return tweets.filter(tweet => {
+      const text = (tweet.full_text || tweet.text || '').trim();
+      if (removeRTs && text.startsWith('RT @')) return false;
+      if (removeReplies && text.startsWith('@')) return false;
+      if (removeQuotes && tweet.quoted_status_id_str) return false;
+      return true;
+    });
+  }
+
+  function showResults(total, removed, kept) {
+    progressArea.style.display = 'none';
+    resultsPanel.style.display = 'block';
+    document.getElementById('statTotal').textContent = total.toLocaleString();
+    document.getElementById('statRemoved').textContent = removed.toLocaleString();
+    document.getElementById('statKept').textContent = kept.length.toLocaleString();
+    const textOnly = document.getElementById('textOnly').checked;
+    if (textOnly) {
+      cleanedData = kept.map(t => (t.full_text || t.text || '').trim()).join('\n\n');
+      outputFilename = outputFilename.replace('.js', '.txt');
+    } else {
+      const wrapped = kept.map(t => ({ tweet: t }));
+      cleanedData = 'window.YTD.tweets.part0 = ' + JSON.stringify(wrapped, null, 2);
+    }
+  }
+
+  function downloadFile() {
+    const blob = new Blob([cleanedData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = outputFilename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function reset() {
+    dropZone.style.display = 'block';
+    optionsPanel.style.display = 'block';
+    progressArea.style.display = 'none';
+    resultsPanel.style.display = 'none';
+    progressFill.style.width = '0%';
+    progressFill.style.background = 'var(--accent)';
+    fileInput.value = '';
+    cleanedData = null;
+  }
+</script>
+</body>
+</html>
+```
